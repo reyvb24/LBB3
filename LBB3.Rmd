@@ -1,0 +1,138 @@
+---
+title: "LBB3"
+author: "Reynard Verill"
+date: "`r format(Sys.Date(), '%B %e, %Y')`"
+output:
+  html_document:
+    df_print: paged
+    highlight: tango
+    theme: cosmo
+    toc: yes
+    toc_float:
+      collapsed: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", out.width = "80%")
+options(scipen = 99)
+```
+
+<style>
+body {
+text-align: justify}
+</style>
+
+# Library and Setup
+
+```{r message=FALSE}
+library(tidyverse)
+library(gtools)
+library(caret)
+library(GGally)
+library(car)
+
+theme_set(theme_minimal() +
+            theme(legend.position = "top"))
+
+options(scipen = 999)
+```
+
+# Training Objectives
+
+The objectives of this report is to understand the correlation between the crime rate of an area and its socioeconomic variables. This report is going to analyze the different predictor variables that are available in the data crime.csv, which is a collection of crime related data in 1960, towards the 'crime_rate' target variable.
+
+```{r out.width="100%", fig.align='center', echo=FALSE}
+knitr::include_graphics("assets/crime.jpg")
+```
+
+```{r}
+crime <- read.csv("data_input/crime.csv")
+
+#remoce x from the data frame as it is only a unique id
+crime <- crime %>% 
+  select(-c(X)) %>% 
+  setNames(c("percent_m", "is_south", "mean_education", "police_exp60", 
+             "police_exp59", "labour_participation", "m_per1000f", "state_pop", 
+             "nonwhites_per1000", "unemploy_m24", "unemploy_m39", "gdp", "inequality", 
+             "prob_prison", "time_prison", "crime_rate"))
+
+  
+glimpse(crime)
+```
+
+Data Description:
+
+- `percent_m`: percentage of males aged 14-24 
+- `is_south`: whether it is in a Southern state. 1 for Yes, 0 for No.
+- `mean_education`: mean years of schooling
+- `police_exp60`: police expenditure in 1960
+- `police_exp59`: police expenditure in 1959 
+- `labour_participation`: labour force participation rate
+- `m_per1000f`: number of males per 1000 females
+- `state_pop`: state population
+- `nonwhites_per1000`: number of non-whites resident per 1000 people
+- `unemploy_m24`: unemployment rate of urban males aged 14-24
+- `unemploy_m39`: unemployment rate of urban males aged 35-39
+- `gdp`: gross domestic product per head
+- `inequality`: income inequality
+- `prob_prison`: probability of imprisonment
+- `time_prison`: avg time served in prisons
+- `crime_rate`: crime rate in an unspecified category Produce a linear model
+
+Here, we can see the strength of the correlation of each variables by using ggcorr
+```{r}
+ggcorr(crime)
+```
+
+
+Then, we can choose which variables are most suitable for our analysis
+```{r}
+model_crime <- lm(crime_rate ~ ., crime)
+summary(model_crime)
+```
+
+```{r}
+step_crime <-step(model_crime)
+summary(step_crime, trace = 0)
+```
+
+# Normality tests
+
+Next, we can test the normality of the residuals of the data frame by using the function hist
+```{r}
+hist(step_crime$residuals)
+```
+
+And we can also use shapiro test to determine whether the residuals are normally distributed or not.
+* p-value < 0.05 : Not normally distributed
+* p-value > 0.05 : Normally distributed
+```{r}
+shapiro.test(step_crime$residuals)
+```
+From the shapiro-wilk normality test, it can be inferred that the residuals are normally distributed as the p-value stands high at 0.8051.
+
+```{r}
+library(nortest)
+ad.test(step_crime$residuals)
+```
+Similarly, the ad.test function also generates a p-value greater than 0.05
+
+
+```{r}
+qqPlot(step_crime$residuals)
+```
+Additionally, when we try to plot the residuals using the qqPlot function, all the dots are scattered within the blue line, which concludes that they are distributed normally. Hence, the normality assumptions have been satisfied as shown above.
+
+# Prediction
+
+```{r}
+step_crime$coefficients
+```
+
+As the normality assumptions have been completed, we are able to obtain the coefficients from the linear regression of the predictor variables.
+```{r}
+pred_crime <- predict(step_crime, crime)
+
+head(pred_crime)
+```
+The above data is the first 6 elements of the predicted crime rate which is acquired by using the function predict.
